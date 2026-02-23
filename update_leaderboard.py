@@ -28,6 +28,11 @@ else:
 submissions_dir = 'submissions'
 if os.path.exists(submissions_dir):
     for team_name in os.listdir(submissions_dir):
+        # --- NEW CHECK FOR FUTURE SUBMISSIONS ---
+        if not team_name or team_name.lower() == 'nan':
+            continue  # Skip if the folder name is empty or literally named 'nan'
+        # -----------------------------------------
+
         team_path = os.path.join(submissions_dir, team_name)
         pred_file = os.path.join(team_path, 'predictions.csv')
         
@@ -36,11 +41,11 @@ if os.path.exists(submissions_dir):
                 pred_df = pd.read_csv(pred_file)
                 score = calculate_mae(gt_df, pred_df)
                 if score is not None:
-                    # FORCE uppercase keys here
+                    # Append strictly with the team_name we just verified
                     leaderboard_data.append({"TEAM": team_name, "MAE": score})
             except Exception as e:
                 print(f"Error processing {team_name}: {e}")
-
+                
 # 4. Create Leaderboard (Full History)
 if leaderboard_data:
     df = pd.DataFrame(leaderboard_data)
@@ -72,7 +77,7 @@ if leaderboard_data:
     # 6. Generate HTML for GitHub Pages (Moving to docs/)
     os.makedirs('docs', exist_ok=True)
     html_table = leaderboard_df.to_html(classes='table table-hover text-center', index=False)
-    
+
     html_content = f"""
     <!DOCTYPE html>
     <html lang="en">
