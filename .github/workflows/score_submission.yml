@@ -79,24 +79,22 @@ jobs:
 
       - name: Commit and Push Leaderboard (Merge Phase)
         if: github.event_name == 'push' && steps.eval_step.outputs.score != ''
+        env:
+          # ADD THIS LINE SO THE PYTHON SCRIPT CAN SEE THE LABELS
+          TEST_LABELS: ${{ secrets.TEST_LABELS }} 
         run: |
           git config user.name "Leaderboard Bot"
           git config user.email "actions@github.com"
           
-          # 1. Sync with the latest main to avoid push conflicts
           git fetch origin main
           git checkout main
           git pull origin main --rebase
           
-          # 2. Run your dedicated Python script
-          # This script handles the CSV, LEADERBOARD.md, and docs/leaderboard.html
+          # Now this script will have access to the TEST_LABELS it needs
           python update_leaderboard.py
           
-          # 3. Add all updated folders
           git add leaderboard/
           git add docs/
           
-          # 4. Commit and Push
-          # The || exit 0 prevents the action from failing if there are no changes
           git commit -m "Auto-update leaderboard [skip ci]" || exit 0
           git push origin main
