@@ -115,7 +115,19 @@ jobs:
         run: |
           git config user.name "Leaderboard Bot"
           git config user.email "actions@github.com"
+          
+          # 1. Stash any local changes to ensure a clean pull
+          git stash
+          
+          # 2. Pull the latest main to sync with any recent merges/Pages updates
+          git pull origin main --rebase
+          
+          # 3. Pop the changes back and re-add them
+          git stash pop || echo "No stash to pop"
+          
+          # 4. Re-run the add/commit logic
           git add leaderboard/
           git commit -m "Update leaderboard for ${{ steps.eval_step.outputs.team_name }}" || exit 0
-          git pull --rebase origin main
+          
+          # 5. Push with a retry loop or standard push
           git push origin HEAD:main
