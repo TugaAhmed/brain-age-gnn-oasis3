@@ -45,52 +45,33 @@ if os.path.exists(submissions_dir):
 if leaderboard_data:
     df = pd.DataFrame(leaderboard_data)
     
-    # Standardize names and remove hidden spaces
+    # 1. Standardize names and remove hidden spaces
     df.columns = df.columns.str.strip().str.upper()
     
-    # If duplicate MAE columns exist, keep only the first one to force it to 1D
-    if isinstance(df.get('MAE'), pd.DataFrame):
-        df = df.loc[:, ~df.columns.duplicated()]
+    # 2. FIX: This line prevents the 'TEAM is not unique' error
+    # It removes any duplicate columns caused by case-mismatch during merge
+    df = df.loc[:, ~df.columns.duplicated()]
 
-    # Force MAE to be a 1D Series even if something went wrong
-    mae_series = df['MAE']
-    if isinstance(mae_series, pd.DataFrame):
-        mae_series = mae_series.iloc[:, 0]
-
-    # Now convert to numeric safely
-    df['MAE'] = pd.to_numeric(mae_series, errors='coerce')
+    # 3. Ensure MAE is numeric
+    df['MAE'] = pd.to_numeric(df['MAE'], errors='coerce')
     
-    # Drop rows without scores and sort
+    # 4. Sort and Rank
     df = df.dropna(subset=['MAE']).sort_values(by=["MAE", "TEAM"])
+    df['RANK'] = df['MAE'].rank(method='dense').astype(int)
     
-    if not df.empty:
-        # 5. DENSE RANKING
-        df['RANK'] = df['MAE'].rank(method='dense').astype(int)
-        
-        leaderboard_df = df[['RANK', 'TEAM', 'MAE']]
-        leaderboard_df.columns = ['Rank', 'Team', 'MAE']
-    else:
-        leaderboard_df = pd.DataFrame(columns=['Rank', 'Team', 'MAE'])
-        
-    # Formatting for Markdown display
-    def format_rank(rank):
-        if rank == 1: return "🥇 1st"
-        if rank == 2: return "🥈 2nd"
-        if rank == 3: return "🥉 3rd"
-        return f"{rank}th"
+    leaderboard_df = df[['RANK', 'TEAM', 'MAE']]
+    leaderboard_df.columns = ['Rank', 'Team', 'MAE']
 
-    display_df = leaderboard_df.copy()
-    display_df['Rank'] = display_df['Rank'].apply(format_rank)
-
-    # 6. Save Files
+    # 5. Save Files
     os.makedirs('leaderboard', exist_ok=True)
     leaderboard_df.to_csv(csv_path, index=False)
     
     with open('leaderboard/LEADERBOARD.md', 'w') as f:
-        f.write("# 🏆 Full Competition History\n\n" + display_df.to_markdown(index=False))
+        f.write("# 🏆 Full Competition History\n\n" + leaderboard_df.to_markdown(index=False))
 
-    # 7. Generate HTML
-    html_table = display_df.to_html(classes='table table-hover text-center', index=False, escape=False)
+    # 6. Generate HTML inside docs/
+    os.makedirs('docs', exist_ok=True)
+    html_table = leaderboard_df.to_html(classes='table table-hover text-center', index=False)
 
     html_content = f"""
     <!DOCTYPE html>
@@ -123,12 +104,8 @@ if leaderboard_data:
     </body>
     </html>
     """
-    
-    # NEW: Ensure the docs directory exists
-    os.makedirs('docs', exist_ok=True)
-    
-    # NEW: Save to docs/leaderboard.html instead of the root
+    # Changed filename to docs/leaderboard.html
     with open('docs/leaderboard.html', 'w') as f:
         f.write(html_content)
-        
-    print("Files updated successfully. HTML saved to docs/leaderboard.html")
+    
+    print("Leaderboard and HTML (in docs/) updated successfully.")        

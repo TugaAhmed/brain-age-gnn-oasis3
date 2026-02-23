@@ -80,7 +80,6 @@ jobs:
       - name: Commit and Push Leaderboard (Merge Phase)
         if: github.event_name == 'push' && steps.eval_step.outputs.score != ''
         env:
-          # ADD THIS LINE SO THE PYTHON SCRIPT CAN SEE THE LABELS
           TEST_LABELS: ${{ secrets.TEST_LABELS }} 
         run: |
           git config user.name "Leaderboard Bot"
@@ -90,9 +89,9 @@ jobs:
           git checkout main
           git pull origin main --rebase
           
-          # Now this script will have access to the TEST_LABELS it needs
           python update_leaderboard.py
           
+          # CRITICAL: Add the docs folder
           git add leaderboard/
           git add docs/
           
