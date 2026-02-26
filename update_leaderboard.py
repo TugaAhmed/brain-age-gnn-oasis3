@@ -7,7 +7,7 @@ def calculate_mae(ground_truth_df, prediction_df):
     if merged.empty:
         return None
     mae = (merged['age_at_visit_true'] - merged['age_at_visit_pred']).abs().mean()
-    return round(mae, 4)
+    return round(mae, 8)
 
 # 1. Load Ground Truth
 gt_data = os.getenv('TEST_LABELS')
@@ -45,24 +45,27 @@ if os.path.exists(submissions_dir):
                     leaderboard_data.append({"TEAM": team_name, "MAE": score})
             except Exception as e:
                 print(f"Error processing {team_name}: {e}")
-                
+
 # 4. Create Leaderboard (Full History)
 if leaderboard_data:
     df = pd.DataFrame(leaderboard_data)
     
-    # Standardize names and remove hidden spaces
+    # 1. Standardize all column names to uppercase immediately
     df.columns = df.columns.str.strip().str.upper()
     
-    # FIX: Remove duplicate columns if they exist
-    df = df.loc[:, ~df.columns.duplicated()]
+    # 2. THE FIX: Collapse duplicate columns (merges 'TEAM' and 'TEAM')
+    # This combines the "old" Team column and the "new" TEAM column into one.
+    df = df.groupby(level=0, axis=1).first()
 
-    # Force MAE to be numeric
+    # 3. Clean up: Drop rows that are still missing a Team name
+    df = df.dropna(subset=['TEAM'])
+
+    # 4. Force MAE to be numeric and Sort
     df['MAE'] = pd.to_numeric(df['MAE'], errors='coerce')
-    
-    # Sort and Rank
     df = df.dropna(subset=['MAE']).sort_values(by=["MAE", "TEAM"])
-    df['RANK'] = df['MAE'].rank(method='dense').astype(int)
     
+    # 5. Rank and Finalize
+    df['RANK'] = df['MAE'].rank(method='dense').astype(int)
     leaderboard_df = df[['RANK', 'TEAM', 'MAE']]
     leaderboard_df.columns = ['Rank', 'Team', 'MAE']
 
@@ -93,7 +96,7 @@ if leaderboard_data:
             table {{ width: 100% !important; margin-bottom: 0 !important; }}
             th {{ background-color: #f8fafc !important; color: #64748b; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; text-align: center; padding: 15px !important; }}
             td {{ vertical-align: middle; font-size: 1rem; padding: 15px !important; text-align: center; }}
-            .mae-value {{ font-family: 'monospace'; font-weight: bold; color: #059669; }}
+            .mae-value {{ font-family: 'monospace'; font-weight: bold; color: #059669; white-space: nowrap;}}
         </style>
     </head>
     <body>
