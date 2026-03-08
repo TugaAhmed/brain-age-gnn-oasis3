@@ -11,7 +11,8 @@ jobs:
     permissions:
       pull-requests: write
       contents: write
-      repository-projects: read
+      statuses: write
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -34,37 +35,23 @@ jobs:
           TEST_LABELS: ${{ secrets.TEST_LABELS }}
           RSA_PRIVATE_KEY: ${{ secrets.RSA_PRIVATE_KEY }}
         run: |
-          # 1. Force the runner to fetch the files from the PR branch
+          # 1. Fetch PR branch
           git fetch origin pull/${{ github.event.pull_request.number }}/head:pr_branch
           git checkout pr_branch -- submissions/
 
-          # 2. Find the submission file (Ignoring the sample file)
-          # We look for any .enc that IS NOT sample_submission.enc
+          # 2. Find ONLY user file (ignore sample)
           FILE=$(ls submissions/*.enc | grep -v "sample_submission.enc" | head -n 1)
+          if [ -z "$FILE" ]; then FILE="submissions/sample_submission.enc"; fi
           
-          # 3. Fallback: If ONLY the sample exists, use it
-          if [ -z "$FILE" ]; then 
-            FILE=$(ls submissions/sample_submission.enc 2>/dev/null || true)
-          fi
-
-          if [ -z "$FILE" ]; then
-            echo "score=No New Submission" >> $GITHUB_OUTPUT
-            echo "multi_note=ℹ️ No .enc submission files found." >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          echo "Selected file: $FILE"
-
-          # 4. Prepare metadata for the PR comment
+          # 3. Metadata
           FILENAME=$(basename "$FILE")
           TEAM_NAME="${FILENAME%.*}"
-          echo "team_name=$TEAM_NAME" >> $GITHUB_OUTPUT
-          echo "multi_note=✅ Evaluating submission: \`$FILE\`" >> $GITHUB_OUTPUT
-
-          # 5. Run the evaluation script
-          python competition/evaluate.py --file "$FILE" | tee out.txt
           
-          # 6. Extract and format the score (8 decimal precision)
+          echo "team_name=$TEAM_NAME" >> $GITHUB_OUTPUT
+          echo "multi_note=✅ Evaluating: \`$FILE\`" >> $GITHUB_OUTPUT
+
+          # 4. Score
+          python competition/evaluate.py --file "$FILE" | tee out.txt
           RAW_SCORE=$(grep "SCORE_MAE" out.txt | awk '{print $2}')
           
           if [ -z "$RAW_SCORE" ] || [ "$RAW_SCORE" == "None" ]; then
@@ -73,7 +60,6 @@ jobs:
             FORMATTED_SCORE=$(printf "%.8f" $RAW_SCORE)
             echo "score=$FORMATTED_SCORE" >> $GITHUB_OUTPUT
           fi
-          
 
       - name: Post Score to PR
         uses: mshick/add-pr-comment@v2
