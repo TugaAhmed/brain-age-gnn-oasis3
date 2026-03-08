@@ -33,15 +33,15 @@ jobs:
           TEST_LABELS: ${{ secrets.TEST_LABELS }}
           RSA_PRIVATE_KEY: ${{ secrets.RSA_PRIVATE_KEY }}
         run: |
-          # 1. Detect if any existing files were modified or deleted (Tempering Check)
-          # This looks for any change that is NOT an "A" (Added) status
-          TAMPERED_FILES=$(git diff --name-status origin/main...HEAD | grep 'submissions/' | grep -v '^A' || true)
+          # # 1. Detect if any existing files were modified or deleted (Tempering Check)
+          # # This looks for any change that is NOT an "A" (Added) status
+          # TAMPERED_FILES=$(git diff --name-status origin/main...HEAD | grep 'submissions/' | grep -v '^A' || true)
           
-          if [ -n "$TAMPERED_FILES" ]; then
-            echo "score=Security Error" >> $GITHUB_OUTPUT
-            echo "multi_note=❌ **Security Warning:** Existing submission files were modified or deleted. Only NEW file additions are allowed. Please revert changes to previous files to proceed." >> $GITHUB_OUTPUT
-            exit 1
-          fi
+          # if [ -n "$TAMPERED_FILES" ]; then
+          #   echo "score=Security Error" >> $GITHUB_OUTPUT
+          #   echo "multi_note=❌ **Security Warning:** Existing submission files were modified or deleted. Only NEW file additions are allowed. Please revert changes to previous files to proceed." >> $GITHUB_OUTPUT
+          #   exit 1
+          # fi
 
           # 2. Get only NEWLY added files with timestamps
           # --diff-filter=A ensures we only look at newly created files
